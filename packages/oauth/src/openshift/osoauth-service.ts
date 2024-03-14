@@ -281,17 +281,23 @@ export class OSOAuthService implements OAuthProtoService {
     redirect(targetUri)
   }
 
-  private doLogout(config: OpenShiftOAuthConfig): void {
-    this.fetchUnregister?.()
-
-    const currentURI = new URL(window.location.href)
+  private doLogout(config: OpenShiftOAuthConfig) {
+    const currentURL = new URL(window.location.href)
+    const apiTokenUrl = this.getApiOAuthAccessTokensUrl()
     // The following request returns 403 when delegated authentication with an
     // OAuthClient is used, as possible scopes do not grant permissions to access the OAuth API:
     // See https://github.com/openshift/origin/issues/7011
-    //
-    // So little point in trying to delete the token. Lets do in client-side only
-    //
-    forceRelogin(currentURI, config)
+    const always = () => {
+      this.fetchUnregister?.()
+      forceRelogin(currentURL, config)
+    }
+    fetchPath(apiTokenUrl, { success: always, error: always }, { method: 'DELETE' })
+  }
+
+  private getApiOAuthAccessTokensUrl(): string {
+    const masterUri = this.userProfile.getMasterUri()
+    const token = this.userProfile.getToken()
+    return `${masterUri}/apis/oauth.openshift.io/v1/oauthaccesstokens/${token}`
   }
 
   async isLoggedIn(): Promise<boolean> {
